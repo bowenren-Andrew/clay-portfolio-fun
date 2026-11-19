@@ -13,14 +13,32 @@ type ShopChapterProps = {
 
 const categories = ['全部', '技能', '工具', '爱好'] as const
 
+type ShopCategory = (typeof categories)[number]
+type GroceryCategory = Exclude<ShopCategory, '全部'>
+
+const groceryCatalog = [
+  { category: '技能', title: 'Python 与机器学习' },
+  { category: '工具', title: '我的 AI 搭子们' },
+  { category: '爱好', title: '羽毛球' },
+  { category: '爱好', title: '无畏契约' },
+  { category: '爱好', title: '手磨咖啡与电影' },
+] as const satisfies ReadonlyArray<{ category: GroceryCategory; title: string }>
+
 export function ShopChapter({ reducedMotion }: ShopChapterProps) {
   const sectionRef = useRef<HTMLElement>(null)
   const [activeCard, setActiveCard] = useState(0)
-  const [activeCategory, setActiveCategory] = useState<(typeof categories)[number]>('全部')
+  const [activeCategory, setActiveCategory] = useState<ShopCategory>('全部')
   const activeCardRef = useRef(0)
+  const pendingPinResetRef = useRef<number | null>(null)
+  const visibleCards =
+    activeCategory === '全部'
+      ? groceryCatalog
+      : groceryCatalog.filter((card) => card.category === activeCategory)
+  const visibleCardCount = visibleCards.length
+  const displayedCardIndex = Math.min(activeCard, visibleCardCount - 1)
 
-  const updateActiveCard = (nextIndex: number) => {
-    const safeIndex = Math.max(0, Math.min(4, nextIndex))
+  const updateActiveCard = (nextIndex: number, total: number) => {
+    const safeIndex = Math.max(0, Math.min(total - 1, nextIndex))
 
     if (safeIndex === activeCardRef.current) {
       return
@@ -30,6 +48,28 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
     setActiveCard(safeIndex)
   }
 
+  const selectCategory = (category: ShopCategory) => {
+    if (category === activeCategory) {
+      return
+    }
+
+    const section = sectionRef.current
+    const pinSpacer = section?.parentElement?.classList.contains('pin-spacer')
+      ? section.parentElement
+      : null
+
+    pendingPinResetRef.current =
+      !reducedMotion &&
+      window.matchMedia('(min-width: 768px)').matches &&
+      pinSpacer
+        ? pinSpacer.getBoundingClientRect().top + window.scrollY
+        : null
+
+    activeCardRef.current = 0
+    setActiveCard(0)
+    setActiveCategory(category)
+  }
+
   useLayoutEffect(() => {
     const section = sectionRef.current
 
@@ -37,9 +77,12 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
       return
     }
 
-    const cards = Array.from(section.querySelectorAll<HTMLElement>('[data-grocery-card]'))
+    const cards = Array.from(section.querySelectorAll<HTMLElement>('[data-grocery-card]:not([hidden])'))
+    const cardCount = cards.length
+    const pinResetTop = pendingPinResetRef.current
     const media = gsap.matchMedia()
     let cleanupNative = () => undefined
+    pendingPinResetRef.current = null
 
     media.add('(min-width: 768px)', () => {
       const shopWindow = section.querySelector<HTMLElement>('.shop-window')
@@ -55,10 +98,15 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
           cancelAnimationFrame(frame)
           frame = requestAnimationFrame(() => {
             const max = Math.max(1, shopWindow.scrollWidth - shopWindow.clientWidth)
-            updateActiveCard(Math.round((shopWindow.scrollLeft / max) * (cards.length - 1)))
+            updateActiveCard(
+              Math.round((shopWindow.scrollLeft / max) * (cardCount - 1)),
+              cardCount,
+            )
           })
         }
 
+        shopWindow.scrollLeft = 0
+        updateActiveCard(0, cardCount)
         shopWindow.addEventListener('scroll', onScroll, { passive: true })
         cleanupNative = () => {
           cancelAnimationFrame(frame)
@@ -68,9 +116,11 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
         return cleanupNative
       }
 
+      gsap.set(track, { x: 0 })
       const getDistance = () => Math.max(0, track.scrollWidth - shopWindow.clientWidth)
 
       if (getDistance() <= 0) {
+        updateActiveCard(0, cardCount)
         return
       }
 
@@ -86,7 +136,7 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
           anticipatePin: 1,
           invalidateOnRefresh: true,
           onUpdate: (self) => {
-            updateActiveCard(Math.round(self.progress * (cards.length - 1)))
+            updateActiveCard(Math.round(self.progress * (cardCount - 1)), cardCount)
           },
         },
       })
@@ -119,7 +169,7 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
             }
           })
 
-          updateActiveCard(closestIndex)
+          updateActiveCard(closestIndex, cardCount)
         })
       }
 
@@ -134,14 +184,23 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
       }
     })
 
-    requestAnimationFrame(() => ScrollTrigger.refresh())
+    let refreshFrame = requestAnimationFrame(() => {
+      ScrollTrigger.refresh()
+
+      if (pinResetTop !== null) {
+        window.scrollTo({ top: pinResetTop, left: 0, behavior: 'auto' })
+        ScrollTrigger.update()
+      }
+    })
 
     return () => {
+      cancelAnimationFrame(refreshFrame)
       cleanupNative()
       media.revert()
       activeCardRef.current = 0
+      refreshFrame = 0
     }
-  }, [reducedMotion])
+  }, [activeCategory, reducedMotion])
 
   return (
     <section
@@ -167,31 +226,39 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
           <div className="shop-counter" aria-live="polite" aria-atomic="true">
             <span className="mono">SHELF ITEM</span>
             <strong>
-              {String(activeCard + 1).padStart(2, '0')} <span>/ 05</span>
+              {String(displayedCardIndex + 1).padStart(2, '0')}
+              <span>/{String(visibleCardCount).padStart(2, '0')}</span>
             </strong>
           </div>
         </div>
 
         <div className="shop-toolbar">
-          <div className="category-pills" role="group" aria-label="杂货分类，仅作视觉高亮">
+          <div className="category-pills" role="group" aria-label="杂货分类筛选">
             {categories.map((category) => (
               <button
                 type="button"
                 key={category}
                 className={`category-pill ${activeCategory === category ? 'is-active' : ''}`}
                 aria-pressed={activeCategory === category}
-                onClick={() => setActiveCategory(category)}
+                aria-controls="grocery-shelf"
+                data-shop-category={category}
+                onClick={() => selectCategory(category)}
               >
                 {category}
               </button>
             ))}
           </div>
-          <span className="pill-note mono">FILTER IS A LIE, SCROLL INSTEAD</span>
+          <span className="pill-note mono">点分类，只看这一种</span>
         </div>
 
         <div className="shop-window">
-          <div className="shop-track">
-            <article className="grocery-card grocery-card--skill" data-grocery-card>
+          <div id="grocery-shelf" className="shop-track">
+            <article
+              className="grocery-card grocery-card--skill"
+              data-grocery-card
+              data-category="技能"
+              hidden={activeCategory !== '全部' && activeCategory !== '技能'}
+            >
               <div className="grocery-card__topline">
                 <span className="grocery-card__tag">技能</span>
                 <span className="grocery-card__number mono">01</span>
@@ -218,7 +285,12 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
               </div>
             </article>
 
-            <article className="grocery-card grocery-card--tools" data-grocery-card>
+            <article
+              className="grocery-card grocery-card--tools"
+              data-grocery-card
+              data-category="工具"
+              hidden={activeCategory !== '全部' && activeCategory !== '工具'}
+            >
               <div className="grocery-card__topline">
                 <span className="grocery-card__tag">工具</span>
                 <span className="grocery-card__number mono">02</span>
@@ -250,7 +322,12 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
               </div>
             </article>
 
-            <article className="grocery-card grocery-card--badminton" data-grocery-card>
+            <article
+              className="grocery-card grocery-card--badminton"
+              data-grocery-card
+              data-category="爱好"
+              hidden={activeCategory !== '全部' && activeCategory !== '爱好'}
+            >
               <div className="grocery-card__topline">
                 <span className="grocery-card__tag">爱好</span>
                 <span className="grocery-card__number mono">03</span>
@@ -268,7 +345,12 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
               </div>
             </article>
 
-            <article className="grocery-card grocery-card--valorant" data-grocery-card>
+            <article
+              className="grocery-card grocery-card--valorant"
+              data-grocery-card
+              data-category="爱好"
+              hidden={activeCategory !== '全部' && activeCategory !== '爱好'}
+            >
               <div className="grocery-card__topline">
                 <span className="grocery-card__tag">爱好</span>
                 <span className="grocery-card__number mono">04</span>
@@ -286,7 +368,12 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
               </div>
             </article>
 
-            <article className="grocery-card grocery-card--coffee" data-grocery-card>
+            <article
+              className="grocery-card grocery-card--coffee"
+              data-grocery-card
+              data-category="爱好"
+              hidden={activeCategory !== '全部' && activeCategory !== '爱好'}
+            >
               <div className="grocery-card__topline">
                 <span className="grocery-card__tag">爱好</span>
                 <span className="grocery-card__number mono">05</span>

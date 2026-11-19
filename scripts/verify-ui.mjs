@@ -24,6 +24,32 @@ const requiredAssets = [
   'avatar-fun-laptop.png',
   'hero-loop.mp4',
 ]
+const shopFilterCases = [
+  {
+    category: '技能',
+    titles: ['Python 与机器学习'],
+    total: 1,
+    expectPinned: false,
+  },
+  {
+    category: '工具',
+    titles: ['我的 AI 搭子们'],
+    total: 1,
+    expectPinned: false,
+  },
+  {
+    category: '爱好',
+    titles: ['羽毛球', '无畏契约', '手磨咖啡与电影'],
+    total: 3,
+    expectPinned: true,
+  },
+  {
+    category: '全部',
+    titles: ['Python 与机器学习', '我的 AI 搭子们', '羽毛球', '无畏契约', '手磨咖啡与电影'],
+    total: 5,
+    expectPinned: true,
+  },
+]
 
 await mkdir(artifactDir, { recursive: true })
 
@@ -140,7 +166,12 @@ async function evaluate(expression) {
   })
 
   if (result.exceptionDetails) {
-    throw new Error(result.exceptionDetails.text ?? 'Runtime.evaluate failed')
+    const description = result.exceptionDetails.exception?.description
+    const location =
+      result.exceptionDetails.lineNumber != null
+        ? `${result.exceptionDetails.lineNumber + 1}:${(result.exceptionDetails.columnNumber ?? 0) + 1}`
+        : null
+    throw new Error([result.exceptionDetails.text, location, description].filter(Boolean).join('\n') || 'Runtime.evaluate failed')
   }
 
   return result.result.value
@@ -293,6 +324,134 @@ async function setRangeValue(value) {
     return true;
   })()`)
   await delay(700)
+}
+
+async function clickShopCategory(category) {
+  const clicked = await evaluate(`(() => {
+    const button = Array.from(document.querySelectorAll('.category-pill'))
+      .find((item) => item.getAttribute('data-shop-category') === ${JSON.stringify(category)});
+    if (!button) throw new Error('Missing shop category: ' + ${JSON.stringify(category)});
+    button.click();
+    return true;
+  })()`)
+  await delay(1150)
+  return clicked
+}
+
+async function readShopFilterState() {
+  return evaluate(`(() => {
+    const cards = Array.from(document.querySelectorAll('[data-grocery-card]'));
+    const visibleCards = cards.filter((card) =>
+      !card.hidden &&
+      getComputedStyle(card).display !== 'none' &&
+      card.getClientRects().length > 0,
+    );
+    const hiddenCardsStillLaidOut = cards.filter((card) =>
+      card.hidden && getComputedStyle(card).display !== 'none',
+    ).length;
+    const counterText = document.querySelector('.shop-counter strong')?.textContent?.replace(/\\s+/g, ' ').trim() ?? '';
+    const counterMatch = counterText.match(/(\\d+)\\s*\\/\\s*(\\d+)/);
+    const track = document.querySelector('.shop-track');
+    const trackTransform = track ? getComputedStyle(track).transform : 'none';
+    const shopWindow = document.querySelector('.shop-window');
+    const shopWindowRect = shopWindow?.getBoundingClientRect();
+    const lastCardRect = visibleCards.at(-1)?.getBoundingClientRect();
+    let trackX = null;
+
+    if (trackTransform !== 'none') {
+      trackX = new DOMMatrixReadOnly(trackTransform).m41;
+    }
+
+    return {
+      activeCategory: document.querySelector('.category-pill.is-active')?.textContent?.trim() ?? null,
+      visibleTitles: visibleCards.map((card) => card.querySelector('h3')?.textContent?.replace(/\\s+/g, ' ').trim() ?? ''),
+      cardCount: cards.length,
+      visibleCount: visibleCards.length,
+      hiddenCardsStillLaidOut,
+      counterText,
+      counterCurrent: counterMatch ? Number(counterMatch[1]) : null,
+      counterTotal: counterMatch ? Number(counterMatch[2]) : null,
+      pageOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
+      bodyScrollWidth: document.documentElement.scrollWidth,
+      viewportWidth: window.innerWidth,
+      shopPinned: Boolean(document.querySelector('#groceries')?.closest('.pin-spacer')),
+      trackX,
+      trackTransform,
+      shopWindowScrollable: shopWindow ? Math.max(0, shopWindow.scrollWidth - shopWindow.clientWidth) : null,
+      lastCardRightGap: shopWindowRect && lastCardRect ? shopWindowRect.right - lastCardRect.right : null,
+      note: document.querySelector('.pill-note')?.textContent?.trim() ?? '',
+      hasFalseFilterCopy: document.body.innerText.includes('FILTER IS A LIE'),
+      groupLabel: document.querySelector('.category-pills')?.getAttribute('aria-label') ?? '',
+      pressedButtons: Array.from(document.querySelectorAll('.category-pill[aria-pressed="true"]')).map((button) => button.textContent?.trim() ?? ''),
+    };
+  })()`)
+}
+
+async function assertShopFilter(label, testCase, { expectPinned = testCase.expectPinned, requireStart = false } = {}) {
+  const state = await readShopFilterState()
+  assertCheck(
+    `${label} ${testCase.category} shows exactly the expected cards`,
+    JSON.stringify(state.visibleTitles) === JSON.stringify(testCase.titles) &&
+      state.visibleCount === testCase.total &&
+      state.activeCategory === testCase.category &&
+      JSON.stringify(state.pressedButtons) === JSON.stringify([testCase.category]) &&
+      state.hiddenCardsStillLaidOut === 0,
+    JSON.stringify(state),
+  )
+  assertCheck(
+    `${label} ${testCase.category} counter uses the visible-set denominator`,
+    state.counterTotal === testCase.total && state.counterCurrent >= 1 && state.counterCurrent <= testCase.total,
+    JSON.stringify(state),
+  )
+  assertCheck(
+    `${label} ${testCase.category} keeps the page free of horizontal overflow`,
+    !state.pageOverflow,
+    `scrollWidth=${state.bodyScrollWidth}; viewport=${state.viewportWidth}`,
+  )
+  assertCheck(
+    `${label} ${testCase.category} uses the expected pin state`,
+    state.shopPinned === expectPinned,
+    JSON.stringify({ shopPinned: state.shopPinned, expected: expectPinned, trackX: state.trackX }),
+  )
+
+  if (requireStart) {
+    assertCheck(
+      `${label} ${testCase.category} resets the shelf to its first item`,
+      state.counterCurrent === 1 && (state.trackX === null || Math.abs(state.trackX) <= 2),
+      JSON.stringify({ counterCurrent: state.counterCurrent, trackX: state.trackX }),
+    )
+  }
+
+  return state
+}
+
+async function scrollShopToPinEnd() {
+  const layout = await evaluate(`(() => {
+    const section = document.querySelector('#groceries');
+    const spacer = section?.closest('.pin-spacer');
+    if (!spacer) return { pinned: false };
+    const start = spacer.getBoundingClientRect().top + window.scrollY;
+    const end = start + spacer.offsetHeight - window.innerHeight;
+    window.scrollTo({ top: end, left: 0, behavior: 'instant' });
+    return { pinned: true, start, end, spacerHeight: spacer.offsetHeight };
+  })()`)
+  await delay(1200)
+  return layout
+}
+
+async function scrollShopWindowToEnd() {
+  const state = await evaluate(`(() => {
+    const shopWindow = document.querySelector('.shop-window');
+    if (!shopWindow) throw new Error('Missing shop window');
+    shopWindow.scrollTo({ left: shopWindow.scrollWidth, behavior: 'instant' });
+    shopWindow.dispatchEvent(new Event('scroll'));
+    return {
+      scrollLeft: shopWindow.scrollLeft,
+      max: Math.max(0, shopWindow.scrollWidth - shopWindow.clientWidth),
+    };
+  })()`)
+  await delay(500)
+  return state
 }
 
 async function assertDistAssets() {
@@ -712,6 +871,35 @@ try {
       }))()`)
       assertCheck('Shop cards translate horizontally while pinned', galleryProgress.x !== 'none' && !galleryProgress.counter?.startsWith('01'), JSON.stringify(galleryProgress))
       await screenshot('desktop-04b-groceries-progress.png')
+
+      const shopCopyState = await readShopFilterState()
+      assertCheck(
+        'Shop filter copy and control label describe the real behavior',
+        !shopCopyState.hasFalseFilterCopy &&
+          shopCopyState.note === '点分类，只看这一种' &&
+          shopCopyState.groupLabel === '杂货分类筛选' &&
+          shopCopyState.cardCount === 5,
+        JSON.stringify(shopCopyState),
+      )
+
+      for (const testCase of shopFilterCases) {
+        await clickShopCategory(testCase.category)
+        await assertShopFilter('Desktop shop', testCase, { requireStart: true })
+
+        if (testCase.category === '爱好') {
+          const pinEndLayout = await scrollShopToPinEnd()
+          const hobbyEndState = await readShopFilterState()
+          assertCheck('Desktop hobby filter keeps a reachable horizontal pin', pinEndLayout.pinned === true, JSON.stringify(pinEndLayout))
+          assertCheck(
+            'Desktop hobby filter reaches the third card without a blank tail',
+            hobbyEndState.counterCurrent === 3 &&
+              hobbyEndState.counterTotal === 3 &&
+              hobbyEndState.visibleTitles.at(-1) === '手磨咖啡与电影' &&
+              Math.abs(hobbyEndState.lastCardRightGap ?? Number.POSITIVE_INFINITY) <= 40,
+            JSON.stringify(hobbyEndState),
+          )
+        }
+      }
     }
   }
 
@@ -951,6 +1139,12 @@ try {
   await delay(500)
   await screenshot('mobile-04b-groceries-cards.png')
 
+  await scrollToSection('groceries')
+  for (const testCase of shopFilterCases) {
+    await clickShopCategory(testCase.category)
+    await assertShopFilter('Mobile shop', testCase, { expectPinned: false })
+  }
+
   await evaluate(`window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' })`)
   await delay(600)
   await screenshot('mobile-05b-ending-footer.png')
@@ -986,6 +1180,25 @@ try {
     horizontalOverflow: document.documentElement.scrollWidth > window.innerWidth + 1,
   }))()`)
   assertCheck('Reduced motion skips pins and shows final title state', reducedState.reduced && reducedState.pinSpacers === 0 && Number(reducedState.titleOpacity) === 1 && !reducedState.horizontalOverflow, JSON.stringify(reducedState))
+
+  await scrollToSection('groceries')
+  for (const testCase of shopFilterCases) {
+    await clickShopCategory(testCase.category)
+    await assertShopFilter('Reduced motion shop', testCase, { expectPinned: false, requireStart: true })
+
+    if (testCase.category === '爱好') {
+      const nativeEnd = await scrollShopWindowToEnd()
+      const hobbyNativeEndState = await readShopFilterState()
+      assertCheck(
+        'Reduced motion hobby filter remains horizontally reachable',
+        nativeEnd.max > 0 &&
+          hobbyNativeEndState.counterCurrent === 3 &&
+          hobbyNativeEndState.counterTotal === 3 &&
+          Math.abs(hobbyNativeEndState.lastCardRightGap ?? Number.POSITIVE_INFINITY) <= 40,
+        JSON.stringify({ nativeEnd, hobbyNativeEndState }),
+      )
+    }
+  }
 
   await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 1180, y: 360, button: 'none' })
   await delay(150)

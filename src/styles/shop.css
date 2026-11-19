@@ -152,6 +152,10 @@
   transform: translateY(-8px) rotate(0deg);
 }
 
+.grocery-card[hidden] {
+  display: none !important;
+}
+
 .grocery-card::before {
   position: absolute;
   top: -100px;
