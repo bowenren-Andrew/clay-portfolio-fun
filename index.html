@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#6E7748" />
+    <meta
+      name="description"
+      content="任博文的搞怪粘土风个人网站：履历、作品、AI、羽毛球、咖啡与一点点倔强。"
+    />
+    <title>任博文 | 未完待续</title>
+    <link rel="icon" href="%BASE_URL%favicon.svg" type="image/svg+xml" />
+    <link rel="preload" as="image" href="%BASE_URL%assets/avatar-fun-front.png" fetchpriority="high" />
+    <style>
+      .static-fallback {
+        --fallback-moss: #6e7748;
+        --fallback-cream: #fff6e8;
+        --fallback-ink: #2e2a1f;
+        --fallback-coral: #ff6b6b;
+        min-height: 100vh;
+        padding: clamp(20px, 5vw, 72px);
+        background:
+          radial-gradient(circle at 20% 12%, rgba(255, 246, 232, 0.1), transparent 30%),
+          radial-gradient(circle at 85% 70%, rgba(46, 42, 31, 0.16), transparent 32%),
+          var(--fallback-moss);
+        color: var(--fallback-cream);
+        font-family: "Yuanti SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+      .static-fallback main,
+      .static-fallback header,
+      .static-fallback footer {
+        width: min(100%, 1120px);
+        margin-inline: auto;
+      }
+      .static-fallback section {
+        padding-block: clamp(48px, 9vw, 110px);
+        border-top: 1px solid rgba(255, 246, 232, 0.28);
+      }
+      .static-fallback h1,
+      .static-fallback h2,
+      .static-fallback h3,
+      .static-fallback p {
+        margin-block: 0.5em;
+      }
+      .static-fallback h1 {
+        font-size: clamp(3rem, 10vw, 7rem);
+        line-height: 0.95;
+      }
+      .static-fallback h2 {
+        font-size: clamp(2rem, 6vw, 4rem);
+      }
+      .static-fallback a {
+        color: var(--fallback-cream);
+        text-underline-offset: 0.25em;
+      }
+      .static-fallback img,
+      .static-fallback video {
+        display: block;
+        width: min(100%, 520px);
+        height: auto;
+        border: 6px solid #fffdf5;
+        border-radius: 18px;
+        background: var(--fallback-cream);
+        box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.25);
+      }
+      .static-fallback ul {
+        display: grid;
+        gap: 20px;
+        padding-left: 1.25em;
+        line-height: 1.8;
+      }
+      .static-fallback footer {
+        padding-block: 40px;
+        border-top: 1px solid rgba(255, 246, 232, 0.28);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="static-fallback">
+        <header>
+          <p>REN BOWEN · PORTFOLIO / 2026</p>
+          <p>任博文的作品与杂物间</p>
+        </header>
+        <main>
+          <section id="fallback-intro" aria-labelledby="fallback-intro-title">
+            <p>01 / 初次见面</p>
+            <h1 id="fallback-intro-title">嘿，我是任博文</h1>
+            <p>一个正在学机器学习、接点小单、捣鼓 AI 视频的大三学生。偶尔翻车，常常好玩。</p>
+            <video
+              src="%BASE_URL%assets/hero-loop.mp4"
+              poster="%BASE_URL%assets/avatar-fun-front.png"
+              autoplay
+              muted
+              loop
+              playsinline
+              aria-label="任博文的循环动画"
+            ></video>
+            <img src="%BASE_URL%assets/avatar-fun-front.png" alt="任博文的定妆正面，戴着珊瑚红耳机" width="1024" height="1024" />
+          </section>
+
+          <section id="fallback-timeline" aria-labelledby="fallback-timeline-title">
+            <p>02 / 履历</p>
+            <h2 id="fallback-timeline-title">我的履历</h2>
+            <ol>
+              <li><strong>2023</strong> 考入大学，计算机科学与技术，从此和代码过上了。</li>
+              <li><strong>2025</strong> 开始正经做项目，把想法一个个变成能跑的东西。</li>
+              <li><strong>2026</strong> 大三，一边学机器学习，一边接小单、一边捣鼓 AI 视频。</li>
+            </ol>
+          </section>
+
+          <section id="fallback-works" aria-labelledby="fallback-works-title">
+            <p>03 / 作品</p>
+            <h2 id="fallback-works-title">作品文件夹</h2>
+            <img src="%BASE_URL%assets/avatar-fun-laptop.png" alt="任博文抱着珊瑚红笔记本" width="1024" height="1024" />
+            <article>
+              <h3>课程资料问答助手</h3>
+              <p>上传课件 PDF 就能问答的 RAG 应用，已上线。</p>
+              <a href="https://ren-rag-pdf.streamlit.app/" rel="noreferrer">访问课程资料问答助手</a>
+            </article>
+            <article>
+              <h3>中国人口数据仪表盘</h3>
+              <p>31 省 2010–2023 人口数据可视化。</p>
+              <a href="https://github.com/bowenren-Andrew/china-population-dashboard" rel="noreferrer">查看中国人口数据仪表盘仓库</a>
+            </article>
+            <article>
+              <h3>粘土风简历站</h3>
+              <p>这个网站的正经版哥哥。</p>
+              <a href="https://renbowen.qzz.io/clay-portfolio/" rel="noreferrer">访问粘土风简历站</a>
+            </article>
+            <p>文件夹里还有一个“别点我.txt”。</p>
+          </section>
+
+          <section id="fallback-groceries" aria-labelledby="fallback-groceries-title">
+            <p>04 / 杂货铺</p>
+            <h2 id="fallback-groceries-title">杂货铺</h2>
+            <ul>
+              <li>
+                <h3>Python 与机器学习</h3>
+                <img src="%BASE_URL%assets/avatar-fun-side34.png" alt="任博文的三分之四侧面头像" width="1024" height="1024" />
+                <p>正在系统学习，目标 PyTorch。</p>
+              </li>
+              <li>
+                <h3>我的 AI 搭子们</h3>
+                <img src="%BASE_URL%assets/avatar-fun-side.png" alt="任博文的全侧面头像" width="1024" height="1024" />
+                <p>Codex、DSH、Muse，干活主力。</p>
+              </li>
+              <li><h3>羽毛球</h3><p>一周一次，菜但爱打。</p></li>
+              <li><h3>无畏契约</h3><p>放松的时候来两局。</p></li>
+              <li><h3>手磨咖啡与电影</h3><p>充电方式。</p></li>
+            </ul>
+          </section>
+
+          <section id="fallback-ending" aria-labelledby="fallback-ending-title">
+            <p>05 / 无限可能</p>
+            <img src="%BASE_URL%assets/avatar-fun-shocked.png" alt="任博文惊讶地睁大眼睛" width="1024" height="1024" />
+            <h2 id="fallback-ending-title">未完待续……</h2>
+            <p>好戏还在后头。等我把下一个想法做成能跑的东西。</p>
+            <footer>© 2026 任博文 · 本站由粘土、咖啡和一点点倔强驱动。</footer>
+          </section>
+        </main>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
+
