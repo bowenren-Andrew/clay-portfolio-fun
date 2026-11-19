@@ -29,7 +29,7 @@ export function EndingChapter({ onUnlock }: EndingChapterProps) {
               <div className="ending-sticker__image-wrap">
                 <img
                   src={assets.shocked}
-                  alt="任博文惊讶地睁大眼睛，戴着珊瑚红耳机"
+                  alt="任博文惊讶地睁大眼睛的黏土形象"
                   width="1024"
                   height="1024"
                   loading="lazy"
@@ -85,4 +85,3 @@ export function EndingChapter({ onUnlock }: EndingChapterProps) {
     </section>
   )
 }
-

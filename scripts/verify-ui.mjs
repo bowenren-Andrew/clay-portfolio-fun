@@ -592,6 +592,36 @@ try {
   await primeLazyImages()
   await assertHeroTitle('Desktop')
   await assertRenderedImageIntegrity('Desktop')
+  const initialAltState = await evaluate(`Array.from(document.images).map((image) => image.getAttribute('alt')?.trim() ?? '')`)
+  const expectedInitialAlts = [
+    '任博文正面笑脸，戴着珊瑚红耳机',
+    '任博文伸出手指讲解的黏土形象',
+    '任博文抱着珊瑚红笔记本的黏土形象',
+    '任博文四分之三侧面头像',
+    '任博文全侧面头像',
+    '任博文惊讶地睁大眼睛的黏土形象',
+  ]
+  const invalidAltFragments = ['定妆正面', '三分之四', '摊上珊瑚红', '煤炭风']
+  assertCheck(
+    'Initial rendered image alt text matches the audited copy',
+    JSON.stringify(initialAltState) === JSON.stringify(expectedInitialAlts) &&
+      initialAltState.every((alt) => !invalidAltFragments.some((fragment) => alt.includes(fragment))),
+    JSON.stringify(initialAltState),
+  )
+  const initialFoundLine = await evaluate(`(() => {
+    const line = document.querySelector('.found-line');
+    return {
+      text: line?.textContent?.trim() ?? '',
+      visibleClass: line?.classList.contains('found-line--visible') ?? false,
+      opacity: line ? Number(getComputedStyle(line).opacity) : null,
+      role: line?.getAttribute('role'),
+    };
+  })()`)
+  assertCheck(
+    'Completion line contains no text before 3/3',
+    initialFoundLine.text === '' && !initialFoundLine.visibleClass && initialFoundLine.opacity === 0 && initialFoundLine.role === 'status',
+    JSON.stringify(initialFoundLine),
+  )
   await assertVideoFrame('Desktop')
   await assertAvatarVisible('Desktop intro', '.hero-video', { video: true })
 
@@ -645,11 +675,32 @@ try {
     }
 
     if (id === 'timeline') {
+      const timelineAudit = await evaluate(`(() => ({
+        years: Array.from(document.querySelectorAll('[data-ghost-year]')).map((year) => year.textContent?.trim()),
+        pills: Array.from(document.querySelectorAll('.timeline-step .year-pill')).map((pill) => pill.textContent?.trim()),
+        titles: Array.from(document.querySelectorAll('.timeline-step h3')).map((title) => title.textContent?.trim()),
+        firstBody: document.querySelector('.timeline-step p')?.textContent?.trim() ?? '',
+        hasOldAdmission: document.body.innerText.includes('2023 考入大学'),
+      }))()`)
+      assertCheck(
+        'Timeline uses the finalized 2024-2026 sequence',
+        JSON.stringify(timelineAudit.years) === JSON.stringify(['2024', '2025', '2026']) &&
+          JSON.stringify(timelineAudit.pills) === JSON.stringify(['2024', '2025', '2026']) &&
+          JSON.stringify(timelineAudit.titles) === JSON.stringify(['考入大学', '开始正经做项目', '大三进行时']) &&
+          timelineAudit.firstBody.includes('计算机科学与技术') &&
+          !timelineAudit.hasOldAdmission,
+        JSON.stringify(timelineAudit),
+      )
       await evaluate(`window.scrollBy({ top: window.innerHeight * 1.08, behavior: 'instant' })`)
       await delay(900)
       const ghostOpacities = await evaluate(`Array.from(document.querySelectorAll('[data-ghost-year]')).map((year) => Number(getComputedStyle(year).opacity))`)
       assertCheck('Timeline ghost years reveal progressively', Math.max(...ghostOpacities) > 0.1, JSON.stringify(ghostOpacities))
       await screenshot('desktop-02b-timeline-progress.png')
+    }
+
+    if (id === 'works') {
+      const archiveLabel = await evaluate(`document.querySelector('.works-folder__meta .mono')?.textContent?.trim()`)
+      assertCheck('Works archive starts in 2024', archiveLabel === 'ARCHIVE 2024-2026', archiveLabel)
     }
 
     if (id === 'groceries') {
@@ -731,6 +782,11 @@ try {
     focusedClass: document.activeElement?.className,
     linkTargets: Array.from(document.querySelectorAll('.folder-project a')).map((link) => link.href),
     transforms: Array.from(document.querySelectorAll('.folder-project')).map((card) => getComputedStyle(card).transform),
+    projectCards: Array.from(document.querySelectorAll('.folder-project')).map((card) => ({
+      title: card.querySelector('h3')?.textContent?.trim(),
+      href: card.querySelector('a')?.getAttribute('href'),
+      label: card.querySelector('a')?.textContent?.replace(/\\s+/g, ' ').trim(),
+    })),
   }))()`)
   assertCheck('Folder opens with three fanned project cards', modalState.open && modalState.cards === 3 && modalState.transforms.every((value) => value !== 'none'))
   const requiredLinks = [
@@ -742,6 +798,14 @@ try {
     'All project links use the required URLs',
     requiredLinks.every((link) => modalState.linkTargets.includes(link)),
     JSON.stringify(modalState.linkTargets),
+  )
+  const portfolioProject = modalState.projectCards.find((project) => project.href === 'https://renbowen.qzz.io/clay-portfolio/')
+  assertCheck(
+    'Portfolio card title, online link, and button copy agree',
+    portfolioProject?.title === '粘土风简历站' &&
+      portfolioProject?.label === '访问线上简历站' &&
+      modalState.projectCards.every((project) => !project.title?.includes('煤炭风')),
+    JSON.stringify(modalState.projectCards),
   )
   await screenshot('desktop-folder-open.png')
 
@@ -762,6 +826,11 @@ try {
   await evaluate(`window.scrollTo({ top: 0, behavior: 'instant' })`)
   await delay(550)
   const faceSequence = []
+  const expectedFaceAlts = [
+    '任博文开怀大笑的黏土形象',
+    '任博文惊讶地睁大眼睛的黏土形象',
+    '任博文正面笑脸，戴着珊瑚红耳机',
+  ]
   for (let click = 0; click < 3; click += 1) {
     await evaluate(`document.querySelector('.hero-sticker')?.click()`)
     const face = await evaluate(`(async () => {
@@ -776,12 +845,13 @@ try {
         complete: image?.complete,
         naturalWidth: image?.naturalWidth,
         naturalHeight: image?.naturalHeight,
+        alt: image?.getAttribute('alt')?.trim() ?? '',
       };
     })()`)
     faceSequence.push(face.src)
     assertCheck(
-      `Expression click ${click + 1} image is decoded`,
-      face.complete && face.naturalWidth > 0 && face.naturalHeight > 0,
+      `Expression click ${click + 1} image is decoded and has the audited alt`,
+      face.complete && face.naturalWidth > 0 && face.naturalHeight > 0 && face.alt === expectedFaceAlts[click],
       JSON.stringify(face),
     )
   }
@@ -807,19 +877,34 @@ try {
   await delay(300)
   const fileEggState = await evaluate(`(() => ({ count: document.querySelector('.egg-counter output')?.textContent, openedLabel: document.querySelector('.secret-file__copy small')?.textContent }))()`)
   assertCheck('Secret file adds the second egg', fileEggState.count === '2/3', JSON.stringify(fileEggState))
+  const partialEggState = await evaluate(`(() => {
+    const line = document.querySelector('.found-line');
+    return {
+      count: document.querySelector('.egg-counter output')?.textContent,
+      text: line?.textContent?.trim() ?? '',
+      visibleClass: line?.classList.contains('found-line--visible') ?? false,
+      opacity: line ? Number(getComputedStyle(line).opacity) : null,
+    };
+  })()`)
+  assertCheck(
+    'Completion line stays empty and hidden at 2/3',
+    partialEggState.count === '2/3' && partialEggState.text === '' && !partialEggState.visibleClass && partialEggState.opacity === 0,
+    JSON.stringify(partialEggState),
+  )
   await pressEscape()
 
   await scrollToSection('ending')
   await evaluate(`document.querySelector('.headphone-spot--left')?.click()`)
-  await delay(260)
+  await delay(700)
   const finalEggState = await evaluate(`(() => ({
     count: document.querySelector('.egg-counter output')?.textContent,
     found: document.querySelector('.found-line')?.classList.contains('found-line--visible'),
     foundText: document.querySelector('.found-line')?.textContent?.trim(),
+    foundOpacity: Number(getComputedStyle(document.querySelector('.found-line')).opacity),
     starBurst: Boolean(document.querySelector('.star-burst')),
     stars: document.querySelectorAll('.confetti-star').length,
   }))()`)
-  assertCheck('Headphone click completes all three eggs', finalEggState.count === '3/3' && finalEggState.found && finalEggState.starBurst, JSON.stringify(finalEggState))
+  assertCheck('Headphone click completes all three eggs', finalEggState.count === '3/3' && finalEggState.found && finalEggState.foundOpacity === 1 && finalEggState.starBurst, JSON.stringify(finalEggState))
   assertCheck('Celebration text is exact', finalEggState.foundText === '好家伙，全被你找到了。', finalEggState.foundText)
   await screenshot('desktop-easter-complete.png')
   await delay(2500)
@@ -924,6 +1009,11 @@ try {
       sectionCount: fallback?.querySelectorAll('section').length,
       projectLinks: fallback?.querySelectorAll('a[href^="https://"]').length,
       bodyTextLength: document.body.innerText.trim().length,
+      imageAlts: Array.from(fallback?.querySelectorAll('img') ?? []).map((image) => image.getAttribute('alt')?.trim() ?? ''),
+      timelineText: fallback?.querySelector('#fallback-timeline')?.innerText ?? '',
+      portfolioTitle: Array.from(fallback?.querySelectorAll('h3') ?? []).find((heading) => heading.textContent?.includes('简历站'))?.textContent?.trim(),
+      portfolioHref: Array.from(fallback?.querySelectorAll('a') ?? []).find((link) => link.textContent?.includes('简历站'))?.getAttribute('href'),
+      portfolioLinkText: Array.from(fallback?.querySelectorAll('a') ?? []).find((link) => link.textContent?.includes('简历站'))?.textContent?.trim(),
       mediaSources,
       invalidSources,
     };
@@ -936,7 +1026,19 @@ try {
       noJsState.projectLinks === 3 &&
       noJsState.bodyTextLength > 500 &&
       noJsState.mediaSources.length >= 6 &&
-      noJsState.invalidSources.length === 0,
+      noJsState.invalidSources.length === 0 &&
+      noJsState.timelineText.includes('2024 考入大学') &&
+      !noJsState.timelineText.includes('2023 考入大学') &&
+      JSON.stringify(noJsState.imageAlts) === JSON.stringify([
+        '任博文正面笑脸，戴着珊瑚红耳机',
+        '任博文抱着珊瑚红笔记本的黏土形象',
+        '任博文四分之三侧面头像',
+        '任博文全侧面头像',
+        '任博文惊讶地睁大眼睛的黏土形象',
+      ]) &&
+      noJsState.portfolioTitle === '粘土风简历站' &&
+      noJsState.portfolioHref === 'https://renbowen.qzz.io/clay-portfolio/' &&
+      noJsState.portfolioLinkText === '访问线上简历站',
     JSON.stringify(noJsState),
   )
   await screenshot('no-js-fallback.png')
@@ -969,24 +1071,3 @@ try {
   socket.close()
   chrome.kill()
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

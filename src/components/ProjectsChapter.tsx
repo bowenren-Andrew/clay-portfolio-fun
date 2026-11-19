@@ -49,7 +49,7 @@ const projects: Array<{
     title: '粘土风简历站',
     description: '这个网站的正经版哥哥。',
     href: 'https://renbowen.qzz.io/clay-portfolio/',
-    linkLabel: '去串门',
+    linkLabel: '访问线上简历站',
     preview: 'portfolio',
     fanClass: 'folder-project--right',
   },
@@ -190,7 +190,7 @@ export function ProjectsChapter({ modalOpen, onModalOpenChange, onUnlock }: Proj
             <div className="sticker-card works-sticker">
               <img
                 src={assets.laptop}
-                alt="任博文抱着珊瑚红笔记本，笑得很得意"
+                alt="任博文抱着珊瑚红笔记本的黏土形象"
                 width="1024"
                 height="1024"
                 loading="lazy"
@@ -224,7 +224,7 @@ export function ProjectsChapter({ modalOpen, onModalOpenChange, onUnlock }: Proj
               <span className="works-folder__paper works-folder__paper--two" aria-hidden="true" />
               <span className="works-folder__front">
                 <span className="works-folder__meta">
-                  <span className="mono">ARCHIVE 2023—2026</span>
+                  <span className="mono">ARCHIVE 2024-2026</span>
                   <span className="works-folder__count">3 + 1</span>
                 </span>
                 <span className="works-folder__title">
@@ -344,4 +344,3 @@ export function ProjectsChapter({ modalOpen, onModalOpenChange, onUnlock }: Proj
     </section>
   )
 }
-

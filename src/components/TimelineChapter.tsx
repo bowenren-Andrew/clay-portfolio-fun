@@ -13,7 +13,7 @@ type TimelineChapterProps = {
 
 const timeline = [
   {
-    year: '2023',
+    year: '2024',
     title: '考入大学',
     text: '计算机科学与技术，从此和代码过上了。',
     index: '01',
@@ -146,7 +146,7 @@ export function TimelineChapter({ reducedMotion }: TimelineChapterProps) {
             <div className="sticker-card timeline-sticker">
               <img
                 src={assets.presenter}
-                alt="任博文伸出手指，认真讲解的样子"
+                alt="任博文伸出手指讲解的黏土形象"
                 width="1024"
                 height="1024"
                 loading="lazy"
@@ -198,7 +198,3 @@ export function TimelineChapter({ reducedMotion }: TimelineChapterProps) {
     </section>
   )
 }
-
-
-
-

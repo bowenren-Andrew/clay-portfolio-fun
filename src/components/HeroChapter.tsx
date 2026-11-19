@@ -22,12 +22,12 @@ const faces = [
   {
     src: assets.laugh,
     label: '大笑',
-    alt: '任博文开怀大笑，露出牙齿',
+    alt: '任博文开怀大笑的黏土形象',
   },
   {
     src: assets.shocked,
     label: '惊讶',
-    alt: '任博文惊讶地睁大眼睛',
+    alt: '任博文惊讶地睁大眼睛的黏土形象',
   },
 ]
 
@@ -212,7 +212,7 @@ export function HeroChapter({
           </h1>
 
           <div className={`found-line ${foundAll ? 'found-line--visible' : ''}`} role="status" aria-live="polite">
-            好家伙，全被你找到了。
+            {foundAll ? '好家伙，全被你找到了。' : null}
           </div>
 
           <p className="hero-lede">
@@ -330,6 +330,3 @@ export function HeroChapter({
     </section>
   )
 }
-
-
-

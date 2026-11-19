@@ -204,7 +204,7 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
                 <div className="mini-sticker mini-sticker--side34">
                   <img
                     src={assets.side34}
-                    alt="任博文的三分之四侧面头像"
+                    alt="任博文四分之三侧面头像"
                     width="1024"
                     height="1024"
                     loading="lazy"
@@ -236,7 +236,7 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
                 <div className="mini-sticker mini-sticker--side">
                   <img
                     src={assets.side}
-                    alt="任博文的全侧面头像"
+                    alt="任博文全侧面头像"
                     width="1024"
                     height="1024"
                     loading="lazy"
@@ -316,6 +316,3 @@ export function ShopChapter({ reducedMotion }: ShopChapterProps) {
     </section>
   )
 }
-
-
-
